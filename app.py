@@ -446,7 +446,7 @@ with tab_metrics:
         )
         max_val = max(y_test.max(), y_pred.max()) / 1e6
         ax1.plot([0, max_val], [0, max_val], color="#dc2626", linestyle="--", linewidth=1.8, label="Línea ideal (y = x)")
-        ax1.set_title("Precio Real vs. Precio Predicho", fontsize=11, fontweight="600")
+        ax1.set_title("Precio Real vs. Precio Predicho", fontsize=11, fontweight="semibold")
         ax1.set_xlabel("Precio Real (Millones COP)", fontsize=9)
         ax1.set_ylabel("Precio Predicho (Millones COP)", fontsize=9)
         ax1.set_xlim(0, 300)
