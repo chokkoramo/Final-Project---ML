@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 import sys
 
-# Asegurar que la raíz del proyecto esté en el PYTHONPATH
+# Asegurar que la raíz del proyecto esté en sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -156,7 +156,6 @@ with tab_chat:
         "*'Tengo un carro 2018 con 60 mil km y motor 1.6, cuánto vale?'* o interactuar turno a turno."
     )
 
-    # Estado de sesión para historial de chat y parámetros parciales
     if "chat_messages" not in st.session_state:
         st.session_state.chat_messages = [
             {
@@ -172,7 +171,6 @@ with tab_chat:
     if "current_vehicle_params" not in st.session_state:
         st.session_state.current_vehicle_params = VehicleParameters()
 
-    # Botones de Consultas Rápidas de Ejemplo
     st.markdown("**Consultas rápidas de ejemplo:**")
     col_q1, col_q2, col_q3, col_clear = st.columns([1.2, 1.2, 1.4, 0.8])
 
@@ -197,23 +195,19 @@ with tab_chat:
             st.session_state.current_vehicle_params = VehicleParameters()
             st.rerun()
 
-    # Renderizar historial de mensajes
     for msg in st.session_state.chat_messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    # Captura de input del usuario (sea por chat_input o por botón rápido)
     user_prompt = st.chat_input("Escribe tu consulta aquí (ej. Carro 2017 con 50 mil km y motor 1.4)...")
     if quick_query:
         user_prompt = quick_query
 
     if user_prompt:
-        # 1. Registrar y mostrar mensaje del usuario
         st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
         with st.chat_message("user"):
             st.markdown(user_prompt)
 
-        # 2. Procesar respuesta del chatbot
         with st.chat_message("assistant"):
             with st.spinner("Analizando tu consulta..."):
                 response_text, updated_params, _ = process_user_message(
@@ -226,7 +220,6 @@ with tab_chat:
                 st.session_state.current_vehicle_params = updated_params
                 st.markdown(response_text)
 
-        # 3. Guardar respuesta en sesión
         st.session_state.chat_messages.append(
             {"role": "assistant", "content": response_text}
         )
@@ -272,8 +265,7 @@ with tab_manual:
 
     btn_tasar = st.button("🚀 Calcular Avalúo y Buscar Similares", type="primary", use_container_width=True)
 
-    # Ejecutar cálculo
-    if btn_tasar or True:  # Modo interactivo en tiempo real
+    if btn_tasar or True:
         pred_price, similar_df = predict_and_find_similar(
             year=int(input_year),
             km_driven=float(input_km),
@@ -309,7 +301,6 @@ with tab_manual:
                 delta_color="off",
             )
 
-        # Explicación de la diferencia
         if pct_diff < -3.0:
             st.success(
                 f"💡 **Oportunidad de Compra:** El precio estimado está un **{abs(pct_diff):.1f}% por debajo** "
@@ -327,7 +318,6 @@ with tab_manual:
 
         st.markdown("#### 🚗 Top 5 Vehículos Más Similares del Catálogo (KNN con StandardScaler)")
 
-        # Preparar tabla visual limpia
         display_df = similar_df.copy()
         display_df.rename(
             columns={
@@ -370,14 +360,13 @@ with tab_manual:
 with tab_metrics:
     st.subheader("📈 Rendimiento del Modelo y Sustentación Técnica")
     st.markdown(
-        "Métricas cuantitativas obtenidas sobre el conjunto de prueba (20% de los datos, 3,582 vehículos) "
+        "Métricas cuantitativas obtenidas sobre el conjunto de prueba (20% de los datos) "
         "y descomposición de la ecuación de Regresión Lineal aprendida."
     )
 
     metrics = models_bundle["metrics"]
     coefs = metrics["coefficients"]
 
-    # Tarjetas de Métricas
     col_m1, col_m2, col_m3 = st.columns(3)
     with col_m1:
         st.metric(
@@ -398,7 +387,6 @@ with tab_metrics:
             help="Métrica que penaliza desvíos grandes en la estimación.",
         )
 
-    # Descomposición de la Ecuación Matemática
     st.markdown("#### 📐 Ecuación Aprendida de Regresión Lineal")
     st.latex(
         r"\text{Precio (COP)} = \beta_0 + \beta_1 \cdot \text{Año} + \beta_2 \cdot \text{Km} + \beta_3 \cdot \text{Cilindraje}"
@@ -413,7 +401,6 @@ with tab_metrics:
         """
     )
 
-    # Gráficas en Matplotlib
     st.markdown("#### 📊 Visualizaciones de Diagnóstico")
     test_data = models_bundle["test_data"]
     y_test = test_data["y_test"]
@@ -423,7 +410,6 @@ with tab_metrics:
     fig_col1, fig_col2 = st.columns(2)
 
     with fig_col1:
-        # Gráfica 1: Precio Real vs Precio Predicho
         fig1, ax1 = plt.subplots(figsize=(6, 4.5), dpi=100)
         ax1.scatter(
             y_test / 1e6,
@@ -439,15 +425,14 @@ with tab_metrics:
         ax1.set_title("Precio Real vs. Precio Predicho", fontsize=12, fontweight="bold")
         ax1.set_xlabel("Precio Real (Millones COP)", fontsize=10)
         ax1.set_ylabel("Precio Predicho (Millones COP)", fontsize=10)
-        ax1.set_xlim(0, 350)
-        ax1.set_ylim(0, 350)
+        ax1.set_xlim(0, 300)
+        ax1.set_ylim(0, 300)
         ax1.grid(True, linestyle=":", alpha=0.6)
         ax1.legend(loc="upper left")
         st.pyplot(fig1)
         plt.close(fig1)
 
     with fig_col2:
-        # Gráfica 2: Relación Año vs Precio
         fig2, ax2 = plt.subplots(figsize=(6, 4.5), dpi=100)
         ax2.scatter(
             X_test["year"],
@@ -458,7 +443,6 @@ with tab_metrics:
             s=20,
             label="Precios Reales",
         )
-        # Tendencia promedio por año
         avg_by_year = (
             pd.DataFrame({"year": X_test["year"], "price_cop": y_test})
             .groupby("year")["price_cop"]
@@ -476,7 +460,7 @@ with tab_metrics:
         ax2.set_title("Relación Año de Fabricación vs. Precio", fontsize=12, fontweight="bold")
         ax2.set_xlabel("Año de Fabricación", fontsize=10)
         ax2.set_ylabel("Precio (Millones COP)", fontsize=10)
-        ax2.set_ylim(0, 350)
+        ax2.set_ylim(0, 300)
         ax2.grid(True, linestyle=":", alpha=0.6)
         ax2.legend(loc="upper left")
         st.pyplot(fig2)

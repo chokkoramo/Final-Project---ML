@@ -8,7 +8,9 @@ Contiene:
 """
 
 from pathlib import Path
+import sys
 from typing import Any, Dict, Tuple
+
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -16,6 +18,11 @@ from sklearn.linear_model import LinearRegression
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+
+# Asegurar que la raíz del proyecto esté en sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # Constantes del módulo
 FEATURE_COLS = ["year", "km_driven", "engine_cc"]
@@ -161,7 +168,7 @@ def predict_and_find_similar(
 
 def main():
     """Ejecución de demostración y prueba del módulo."""
-    data_path = Path(__file__).resolve().parent.parent / "data" / "processed" / "vehicles_unified.csv"
+    data_path = PROJECT_ROOT / "data" / "processed" / "vehicles_unified.csv"
     if not data_path.exists():
         raise FileNotFoundError(
             f"Dataset no encontrado en {data_path}. Ejecuta primero src/etl.py."

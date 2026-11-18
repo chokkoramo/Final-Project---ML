@@ -112,12 +112,10 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
     year: Optional[int] = None
 
     # 1. Extracción de Cilindraje (engine_cc)
-    # Patrón explícito de CC (ej. 1600 cc, 2000cm3)
     m_cc = re.search(r"\b([6-9]\d{2}|[1-5]\d{3})\s*(?:cc|cm3)\b", text_lower)
     if m_cc:
         engine_cc = float(m_cc.group(1))
     else:
-        # Patrón en litros: 1.6, 1.6L, 1.6 litros, 2.0
         m_liters = re.search(
             r"(?:motor|cilindraje|cilindrada)?\s*\b([0-5]\.[0-9])\s*(?:l|litros?|cc)?\b",
             text_lower,
@@ -125,7 +123,6 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
         if m_liters and m_liters.group(1):
             engine_cc = round(float(m_liters.group(1)) * 1000.0, 1)
         else:
-            # 'motor 1600' o 'cilindraje 1400'
             m_motor = re.search(
                 r"(?:motor|cilindraje|cilindrada)\s*(?:de)?\s*([6-9]\d{2}|[1-5]\d{3})\b",
                 text_lower,
@@ -134,7 +131,6 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
                 engine_cc = float(m_motor.group(1))
 
     # 2. Extracción de Kilometraje (km_driven)
-    # Patrones con mil / k (ej. 60 mil km, 60 mil, 60k km, 60k)
     m_mil = re.search(
         r"\b(\d+(?:[\.,]\d+)?)\s*(?:mil|k)\s*(?:km|kms|kilometros?)?\b",
         text_lower,
@@ -143,7 +139,6 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
         val = float(m_mil.group(1).replace(",", "."))
         km_driven = val * 1000.0
     else:
-        # Patrón numérico directo con separador de miles o unidad km (ej. 60.000 km, 60000 km)
         m_km = re.search(
             r"\b(\d{1,3}(?:\.\d{3})+|\d{4,7})\s*(?:km|kms|kilometros?)\b",
             text_lower,
@@ -151,7 +146,6 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
         if m_km:
             km_driven = float(m_km.group(1).replace(".", "").replace(",", ""))
         else:
-            # Contexto explícito de kilometraje (ej. 'kilometraje: 60000')
             m_rec = re.search(
                 r"(?:kilometraje|recorrido|con)\s*(?:de|es|:)?\s*(\d{4,7})\b",
                 text_lower,
@@ -163,7 +157,6 @@ def extract_parameters_regex(text: str) -> VehicleParameters:
     candidates = re.findall(r"\b(199[5-9]|20[0-2][0-9])\b", text_lower)
     for cand in candidates:
         cand_val = int(cand)
-        # Evitar colisión si el número coincide con engine_cc especificado con 'cc'
         if engine_cc and abs(cand_val - engine_cc) < 1e-3 and "cc" in text_lower:
             continue
         year = cand_val
@@ -177,7 +170,7 @@ def extract_parameters_llm(
 ) -> Tuple[Optional[VehicleParameters], Optional[str]]:
     """
     Extrae parámetros utilizando el SDK google-genai con salida JSON estructurada.
-    Intenta primero gemini-2.5-flash y ante retiro/indisponibilidad utiliza gemini-3.8-flash.
+    Intenta gemini-2.5-flash y ante retiro/indisponibilidad utiliza gemini-3.8-flash.
     """
     if client is None:
         return None, None
@@ -226,13 +219,11 @@ def extract_parameters(
     Intenta extraer con LLM Gemini; si no hay cliente o falla la llamada,
     activa automáticamente el extractor offline Regex.
     """
-    # 1. Intento con LLM si el cliente está disponible
     if client is not None:
         params, method = extract_parameters_llm(user_message, client)
         if params is not None:
             return params, method
 
-    # 2. Fallback automático offline con Regex
     params = extract_parameters_regex(user_message)
     return params, "Extractor Offline (Regex)"
 
@@ -260,14 +251,12 @@ def build_valuation_response(
     Redacta una respuesta analítica y estructurada con el avalúo, resumen comparativo
     y recomendación estratégica de mercado.
     """
-    # 1. Estadísticas de los vehículos similares (KNN)
     avg_similar_price = float(similar_df["price_cop"].mean())
     min_similar_price = float(similar_df["price_cop"].min())
     max_similar_price = float(similar_df["price_cop"].max())
     diff_cop = estimated_price - avg_similar_price
     pct_diff = ((estimated_price - avg_similar_price) / avg_similar_price) * 100.0
 
-    # 2. Recomendación estratégica
     if pct_diff < -3.0:
         recomendacion = (
             f"**Oportunidad de Mercado (Precio Competitivo):** El avalúo estimado se ubica un "
@@ -291,7 +280,6 @@ def build_valuation_response(
             "indica un valor justo y equilibrado para una transacción rápida."
         )
 
-    # 3. Construcción del resumen Markdown
     tabla_similares = []
     tabla_similares.append("| Vehículo | Año | Kilometraje | Cilindraje | Combustible | Transmisión | Precio Real | Similitud |")
     tabla_similares.append("| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |")
@@ -345,22 +333,18 @@ def process_user_message(
     """
     from src.models import predict_and_find_similar
 
-    # 1. Extraer del mensaje actual
     new_params, method = extract_parameters(user_message, client=client)
 
-    # 2. Fusionar con parámetros acumulados de la conversación
     if current_params is not None:
         accumulated_params = current_params.merge(new_params)
     else:
         accumulated_params = new_params
 
-    # 3. Comprobar si faltan parámetros
     if not accumulated_params.is_complete():
         missing = accumulated_params.missing_fields()
         response_text = build_missing_info_response(missing)
         return response_text, accumulated_params, None
 
-    # 4. Si están completos, llamar a los modelos de ML
     year = int(accumulated_params.year)
     km = float(accumulated_params.km_driven)
     cc = float(accumulated_params.engine_cc)
@@ -382,7 +366,6 @@ def process_user_message(
         extraction_method=method,
     )
 
-    # Reiniciar parámetros tras completar la tasación exitosamente
     return response_text, VehicleParameters(), similar_df
 
 
@@ -390,7 +373,7 @@ def main():
     """Pruebas funcionales en consola del módulo de chatbot."""
     from src.models import train_and_evaluate
 
-    data_path = Path(__file__).resolve().parent.parent / "data" / "processed" / "vehicles_unified.csv"
+    data_path = PROJECT_ROOT / "data" / "processed" / "vehicles_unified.csv"
     if not data_path.exists():
         raise FileNotFoundError(f"Dataset no encontrado: {data_path}")
 
