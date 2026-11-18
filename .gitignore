@@ -1,0 +1,47 @@
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Entornos Virtuales
+venv/
+.venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Secretos y Configuración de Entorno
+.env
+.env.local
+.env.*.local
+.streamlit/secrets.toml
+
+# Streamlit
+.streamlit/*.log
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Modelos y Archivos Pesados / Serializados
+*.pkl
+*.joblib
+*.model
+*.h5
+
+# Datos Procesados (mantener estructura con .gitkeep)
+data/processed/*.csv
+!data/processed/.gitkeep
+
+# IDEs y Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Distribución / Builds
+build/
+dist/
+*.egg-info/
