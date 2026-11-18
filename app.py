@@ -85,31 +85,53 @@ with st.sidebar:
     )
     st.markdown("---")
 
-    st.subheader("⚙️ Configuración del Asistente")
+    st.subheader("⚡ Optimización del Chatbot")
 
-    # Clave de API de Gemini (en caliente o desde .env)
+    # Selector de Motor de Inferencia
+    mode_option = st.radio(
+        "Modo de Velocidad / Inferencia:",
+        options=[
+            "🚀 Híbrido Inteligente (Recomendado)",
+            "⚡ Modo Turbo (Ultra Rápido < 5 ms)",
+            "🤖 Modo LLM Completo (Gemini)",
+        ],
+        index=0,
+        help=(
+            "• Híbrido: Extrae con Fast-Path local instantáneo (<5 ms) y usa Gemini para consultas complejas.\n"
+            "• Turbo: 100% procesamiento local inmediato sin llamadas de red.\n"
+            "• LLM Completo: Envía siempre la consulta a la nube de Google."
+        ),
+    )
+
+    if "Híbrido" in mode_option:
+        engine_mode = "hybrid"
+    elif "Turbo" in mode_option:
+        engine_mode = "fast"
+    else:
+        engine_mode = "llm"
+
+    st.markdown("---")
+    st.subheader("🔑 Configuración de API")
+
     env_api_key = os.getenv("GEMINI_API_KEY", "")
     default_key = env_api_key if env_api_key and env_api_key != "tu_api_key_aqui" else ""
 
     user_api_key = st.text_input(
-        "🔑 Gemini API Key (opcional):",
+        "Gemini API Key (opcional):",
         value=default_key,
         type="password",
-        help="Si ingresas tu API Key, el chatbot usará Gemini con salida estructurada JSON. Si se omite, operará en modo Offline Regex.",
+        help="Si ingresas tu API Key, el chatbot usará Gemini con salida estructurada JSON y respuestas conversacionales.",
     )
 
-    # Inicializar cliente Gemini según la clave ingresada
     gemini_client = None
     if user_api_key.strip():
-        try:
-            from google import genai
-            gemini_client = genai.Client(api_key=user_api_key.strip())
-            st.success("🟢 **Modo IA Activo** (Gemini LLM)")
-        except Exception:
-            st.warning("⚠️ Error al inicializar Gemini. Modo Regex activo.")
-            gemini_client = None
+        gemini_client = get_gemini_client(api_key_override=user_api_key.strip())
+        if gemini_client:
+            st.success("🟢 **Modo IA Conectado** (Gemini 3.8 Flash)")
+        else:
+            st.warning("⚠️ Clave no válida. Operando en modo local.")
     else:
-        st.info("🟡 **Modo Offline Activo** (Regex)")
+        st.info("🟡 **Modo Local Activo** (Sin llamadas externas)")
 
     st.markdown("---")
     st.subheader("📊 Catálogo del Mercado")
@@ -171,7 +193,7 @@ with tab_chat:
     if "current_vehicle_params" not in st.session_state:
         st.session_state.current_vehicle_params = VehicleParameters()
 
-    st.markdown("**Consultas rápidas de ejemplo:**")
+    st.markdown("**Consultas rápidas de ejemplo (clic para probar instantáneamente):**")
     col_q1, col_q2, col_q3, col_clear = st.columns([1.2, 1.2, 1.4, 0.8])
 
     quick_query = None
@@ -209,13 +231,14 @@ with tab_chat:
             st.markdown(user_prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Analizando tu consulta..."):
+            with st.spinner("Procesando consulta..."):
                 response_text, updated_params, _ = process_user_message(
                     user_message=user_prompt,
                     models_bundle=models_bundle,
                     df=df_vehicles,
                     current_params=st.session_state.current_vehicle_params,
                     client=gemini_client,
+                    mode=engine_mode,
                 )
                 st.session_state.current_vehicle_params = updated_params
                 st.markdown(response_text)
