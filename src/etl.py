@@ -2,9 +2,9 @@
 Módulo ETL (Extract, Transform, Load) para el Tasador y Buscador de Vehículos Usados.
 
 Procesa y unifica los datasets de:
-1. audi.csv (Reino Unido - GBP a COP, millas a km, litros a cc)
-2. Car details v3.csv (India - INR a COP, extracción de CC)
-3. CAR DETAILS FROM CAR DEKHO.csv (India - INR a COP, extracción regex de CC)
+1. audi.csv (Reino Unido - GBP a COP con tasa cruzada real, millas a km, litros a cc)
+2. Car details v3.csv (India - INR a COP con tasa cruzada real, extracción de CC)
+3. CAR DETAILS FROM CAR DEKHO.csv (India - INR a COP con tasa cruzada real, regex de CC)
 
 Genera el dataset limpio y consolidado en data/processed/vehicles_unified.csv.
 """
@@ -20,9 +20,15 @@ RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DATA_DIR = PROJECT_ROOT / "data" / "processed"
 OUTPUT_FILE = PROCESSED_DATA_DIR / "vehicles_unified.csv"
 
-# Constantes de Conversión de Monedas y Unidades
-GBP_TO_COP = 5400.0
-INR_TO_COP = 50.0
+# ==============================================================================
+# CONSTANTES DE CONVERSIÓN DE MONEDAS Y UNIDADES
+# Tasa de referencia: 1 USD = 3,324.59 COP
+# - 1 GBP ≈ 1.315 USD -> 1.315 * 3,324.59 = 4,371.84 COP
+# - 1 INR ≈ 0.0106 USD -> 0.0106 * 3,324.59 = 35.24 COP
+# ==============================================================================
+USD_TO_COP = 3324.59
+GBP_TO_COP = 4371.84
+INR_TO_COP = 35.24
 MILES_TO_KM = 1.60934
 MIN_PRICE_COP_THRESHOLD = 5_000_000.0
 
@@ -119,7 +125,6 @@ def load_and_clean_car_dekho(file_path: Path) -> pd.DataFrame:
     df = pd.read_csv(file_path)
 
     # 1. Extracción de cilindraje con expresión regular en name (ej. 1.6 -> 1600, 1.2 -> 1200)
-    # Busca patrones decimales correspondientes a litros (ej: 1.0, 1.2, 1.6, 2.0)
     liters_extracted = (
         df["name"]
         .astype(str)
@@ -183,7 +188,7 @@ def standardize_categories(df: pd.DataFrame) -> pd.DataFrame:
 def remove_duplicates_and_outliers(df: pd.DataFrame) -> pd.DataFrame:
     """
     Elimina duplicados exactos y outliers extremos:
-    - price_cop <= 5,000,000
+    - price_cop <= 5,000,000 COP
     - km_driven < 0
     """
     df = df.copy()
@@ -212,19 +217,20 @@ def run_etl_pipeline(raw_dir: Path = RAW_DATA_DIR, output_path: Path = OUTPUT_FI
     Ejecuta el pipeline completo de ETL y guarda el dataset unificado.
     """
     print("=" * 60)
-    print("INICIANDO PIPELINE ETL DE VEHÍCULOS USADOS")
+    print("INICIANDO PIPELINE ETL DE VEHÍCULOS USADOS (TRM: 1 USD = 3,324.59 COP)")
+    print(f"GBP a COP: ${GBP_TO_COP:,.2f} | INR a COP: ${INR_TO_COP:,.2f}")
     print("=" * 60)
 
     # 1. Cargar y procesar cada dataset
-    print(f"[1/4] Procesando audi.csv...")
+    print("[1/4] Procesando audi.csv...")
     df_audi = load_and_clean_audi(raw_dir / "audi.csv")
     print(f"      -> Registros procesados (Audi): {len(df_audi):,}")
 
-    print(f"[2/4] Procesando Car details v3.csv...")
+    print("[2/4] Procesando Car details v3.csv...")
     df_v3 = load_and_clean_car_details_v3(raw_dir / "Car details v3.csv")
     print(f"      -> Registros procesados (Car details v3): {len(df_v3):,}")
 
-    print(f"[3/4] Procesando CAR DETAILS FROM CAR DEKHO.csv...")
+    print("[3/4] Procesando CAR DETAILS FROM CAR DEKHO.csv...")
     df_dekho = load_and_clean_car_dekho(raw_dir / "CAR DETAILS FROM CAR DEKHO.csv")
     print(f"      -> Registros procesados (Car Dekho con CC real): {len(df_dekho):,}")
 
