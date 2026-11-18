@@ -248,7 +248,7 @@ def extract_parameters(
     if mode == "fast" or client is None:
         params = extract_parameters_regex(user_message)
         elapsed_ms = (time.perf_counter() - t_start) * 1000.0
-        return params, "⚡ Turbo Regex (Local)", elapsed_ms
+        return params, "Local (Regex)", elapsed_ms
 
     # MODO 2: Híbrido Inteligente (Fast-Path First)
     if mode == "hybrid":
@@ -256,7 +256,7 @@ def extract_parameters(
         # Si el regex extrajo información útil, responde inmediatamente sin esperar llamada de red
         if regex_params.has_any():
             elapsed_ms = (time.perf_counter() - t_start) * 1000.0
-            return regex_params, "⚡ Fast-Path Local", elapsed_ms
+            return regex_params, "Fast-Path Local", elapsed_ms
 
         # Si el regex no encontró nada, consultar a Gemini con timeout estricto
         llm_params, method = extract_parameters_llm(user_message, client, timeout_sec=2.5)
@@ -265,7 +265,7 @@ def extract_parameters(
             return llm_params, method, elapsed_ms
 
         elapsed_ms = (time.perf_counter() - t_start) * 1000.0
-        return regex_params, "⚡ Turbo Regex (Fallback)", elapsed_ms
+        return regex_params, "Local (Regex)", elapsed_ms
 
     # MODO 3: LLM Prioritario con Timeout Estricto
     llm_params, method = extract_parameters_llm(user_message, client, timeout_sec=3.0)
@@ -275,7 +275,7 @@ def extract_parameters(
 
     params = extract_parameters_regex(user_message)
     elapsed_ms = (time.perf_counter() - t_start) * 1000.0
-    return params, "⚡ Turbo Regex (Timeout Fallback)", elapsed_ms
+    return params, "Local (Timeout Fallback)", elapsed_ms
 
 
 def answer_general_question_llm(
@@ -309,11 +309,10 @@ def build_missing_info_response(missing: List[str], elapsed_ms: float, method: s
     """Genera una respuesta cordial solicitando los datos faltantes."""
     fields_list = "\n".join([f"- **{field}**" for field in missing])
     return (
-        "¡Hola! Con gusto te ayudo a tasar tu vehículo y buscar las mejores opciones comparables en el mercado.\n\n"
-        "Para entregarte un avalúo preciso con nuestros modelos de Machine Learning, me falta conocer:\n"
+        "Para realizar el cálculo con precisión, requiero los siguientes datos adicionales:\n\n"
         f"{fields_list}\n\n"
-        "Por favor indícame estos datos para completar el cálculo.\n\n"
-        f"> ⚡ *Procesado en: {elapsed_ms:.1f} ms | Motor: {method}*"
+        "Por favor indícame estos valores para generar el informe comparativo.\n\n"
+        f"> *Tiempo de respuesta: {elapsed_ms:.1f} ms | Motor: {method}*"
     )
 
 
@@ -335,25 +334,25 @@ def build_valuation_response(
 
     if pct_diff < -3.0:
         recomendacion = (
-            f"**Oportunidad de Mercado (Precio Competitivo):** El avalúo estimado se ubica un "
-            f"**{abs(pct_diff):.1f}% por debajo** del promedio de publicaciones similares en el mercado "
+            f"**Precio Competitivo:** El valor estimado se ubica un "
+            f"**{abs(pct_diff):.1f}% por debajo** del promedio de vehículos similares en el mercado "
             f"(${avg_similar_price:,.0f} COP).\n"
-            "- *Para Compradores:* Representa un precio altamente favorable y competitivo.\n"
-            "- *Para Vendedores:* Si el vehículo está en óptimas condiciones, podrías ajustar tu oferta al alza "
-            f"hacia los ${avg_similar_price:,.0f} COP."
+            "- *Compradores:* Representa un precio favorable frente a la oferta actual.\n"
+            "- *Vendedores:* Si el auto está en óptimo estado mecánico y estético, podrías fijar un precio "
+            f"cercano a los ${avg_similar_price:,.0f} COP."
         )
     elif pct_diff > 3.0:
         recomendacion = (
-            f"**Precio Superior al Promedio:** El valor estimado está un **{pct_diff:.1f}% por encima** "
+            f"**Precio Superior al Promedio:** El valor estimado se sitúa un **{pct_diff:.1f}% por encima** "
             f"del promedio de los modelos comparables (${avg_similar_price:,.0f} COP).\n"
-            "- *Para Compradores:* Se recomienda verificar extras, historial mecánico y estado estético para justificar este diferencial.\n"
-            "- *Para Vendedores:* Tu auto goza de buena valorización teórica; asegúrate de destacar su bajo desgaste y mantenimiento al publicarlo."
+            "- *Compradores:* Conviene verificar historial de mantenimiento, accesorios y estado general.\n"
+            "- *Vendedores:* El modelo tiene buena valorización; destaca su bajo desgaste al promocionarlo."
         )
     else:
         recomendacion = (
-            f"**Precio en Equilibrio de Mercado:** El avalúo estimado (${estimated_price:,.0f} COP) está "
-            f"alineado con el promedio de vehículos similares (${avg_similar_price:,.0f} COP), lo que "
-            "indica un valor justo y equilibrado para una transacción rápida."
+            f"**Precio en Equilibrio:** El avalúo estimado (${estimated_price:,.0f} COP) está alineado "
+            f"con el promedio de modelos similares (${avg_similar_price:,.0f} COP), indicando un valor de "
+            "mercado balanceado para una negociación rápida."
         )
 
     tabla_similares = []
@@ -374,20 +373,20 @@ def build_valuation_response(
     tabla_md = "\n".join(tabla_similares)
 
     response = (
-        f"### 🚗 Resultado del Avalúo Comercial\n\n"
+        f"### Resultado del Avalúo Comercial\n\n"
         f"- **Año:** `{year}`\n"
         "- **Kilometraje:** `" f"{km_driven:,.0f} km`\n"
         "- **Cilindraje:** `" f"{engine_cc:,.0f} cc`\n\n"
-        f"### 💰 Precio Estimado de Mercado: **${estimated_price:,.0f} COP**\n\n"
+        f"### Precio Estimado: **${estimated_price:,.0f} COP**\n\n"
         f"---\n\n"
-        f"### 🔍 Top 5 Vehículos Más Similares del Mercado (KNN):\n"
+        f"### Vehículos Más Similares en el Mercado (KNN)\n"
         f"Rango de mercado de similares: **${min_similar_price:,.0f}** - **${max_similar_price:,.0f} COP** "
         f"(Promedio: **${avg_similar_price:,.0f} COP**).\n\n"
         f"{tabla_md}\n\n"
         f"---\n\n"
-        f"### 💡 Análisis y Recomendación de Compra / Venta:\n"
+        f"### Recomendación de Mercado\n"
         f"{recomendacion}\n\n"
-        f"> ⚡ *Respuesta generada en: **{elapsed_ms:.1f} ms** | Motor: **{extraction_method}***"
+        f"> *Tiempo de respuesta: **{elapsed_ms:.1f} ms** | Motor: **{extraction_method}***"
     )
 
     return response
