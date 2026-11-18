@@ -291,7 +291,7 @@ with tab_manual:
 
     btn_calc = st.button("Calcular avalúo", type="primary")
 
-    if btn_calc or True:
+    if btn_calc:
         pred_price, similar_df = predict_and_find_similar(
             year=int(input_year),
             km_driven=float(input_km),
