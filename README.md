@@ -137,7 +137,7 @@ El módulo `src/chatbot.py` implementa una arquitectura resiliente:
 
 ### 1. Clonar el Repositorio / Navegar a la Carpeta
 ```powershell
-cd "C:\Users\JUAN CAMILO\Desktop\Final Project - ML"
+cd "~\Final Project - ML"
 ```
 
 ### 2. Crear y Activar el Entorno Virtual
